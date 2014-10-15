@@ -41,3 +41,25 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+.directory
+*.class
+ANBPreloader/dist/ANBPreloader.jar
+ANBPreloader/dist/README.TXT
+ANotebook/build/built-jar.properties
+ANotebook/build/classes/anotebook/ChainUC.fxml
+ANotebook/derby.log
+ANotebook/dist/ANotebook.html
+ANotebook/dist/ANotebook.jar
+ANotebook/dist/ANotebook.jnlp
+ANotebook/dist/lib/ANBPreloader.jar
+ANotebook/dist/lib/derby.jar
+ANotebook/dist/web-files/dtjava.js
+ANotebook/dist/web-files/error.png
+ANotebook/dist/web-files/get_java.png
+ANotebook/dist/web-files/get_javafx.png
+ANotebook/dist/web-files/javafx-chrome.png
+ANotebook/dist/web-files/javafx-loading-100x100.gif
+ANotebook/dist/web-files/javafx-loading-25x25.gif
+ANotebook/dist/web-files/upgrade_java.png
+ANotebook/dist/web-files/upgrade_javafx.png
