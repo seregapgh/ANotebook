@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<fx:root  type="TitledPane" styleClass="textNumberControl"
+   xmlns:fx="http://javafx.com/fxml" minWidth="100" prefWidth="160" 
+   prefHeight="2000">
+    <collapsible>false</collapsible>
+    <text>test</text>
+    <content>
+        <ListView fx:id="listViewMain"/>
+    </content>
+</fx:root>
