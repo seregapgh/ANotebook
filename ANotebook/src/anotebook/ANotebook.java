@@ -28,6 +28,8 @@ import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Screen;
@@ -59,11 +61,11 @@ public class ANotebook extends Application {
                             condition.append(" OR ");
                         condition.append("word LIKE ?");
                     }
-                    PreparedStatement ps = ANotebook.m_conn.prepareStatement("SELECT chainId "
+                    PreparedStatement ps = ANotebook.m_conn.prepareStatement("SELECT chains.externalChainId "
                             + "FROM words inner join words2chain on words.id = words2chain.wordId "
                             + "     inner join chains on words2chain.chainId = chains.id "
                             + "WHERE " + condition.toString() +" "
-                            + "GROUP BY chainId "
+                            + "GROUP BY externalChainId "
                             + "ORDER BY COUNT(*) DESC, MAX(chains.timestampSelected) DESC "
                             //+ "LIMIT 20"
                             + "FETCH FIRST 20 ROWS ONLY"
@@ -84,7 +86,7 @@ public class ANotebook extends Application {
                     while (rs.next())
                     {
                         ChainUC chuc = new ChainUC();
-                        chuc.m_DBId = rs.getLong("chainId");
+                        chuc.m_DBId = rs.getLong("externalChainId");
                         chuc.Load();
                         chucs.push(chuc);
 
@@ -188,6 +190,24 @@ public class ANotebook extends Application {
             }
         }
     }
+    class InputKeyEventHandler implements EventHandler<KeyEvent>
+    {
+        private ANotebook m_anb;
+        public InputKeyEventHandler(ANotebook anb)
+        {
+            m_anb = anb;
+        }
+        @Override
+        public void handle(KeyEvent keyEvent) {
+            if (keyEvent.getCode() == KeyCode.UP
+                    || keyEvent.getCode() == KeyCode.DOWN)
+            {
+                m_anb.m_chucs.get(ViewType.MAIN).get(0).fireEvent(keyEvent);
+                keyEvent.consume();
+            }
+        }
+        
+    }
     BorderPane m_root;
     public TextField m_input;
     public enum ViewType
@@ -251,7 +271,7 @@ public class ANotebook extends Application {
     {
         PreparedStatement st = m_conn.prepareStatement(
 //                "select top ? id from chains order by timestampSelected desc");
-                "select id from chains order by timestampSelected desc FETCH FIRST ? ROWS ONLY");
+                "select id from chains where externalChainId = id order by timestampSelected desc FETCH FIRST ? ROWS ONLY");
         
         st.setInt(1, number);
         ResultSet rs = st.executeQuery();
@@ -300,9 +320,22 @@ public class ANotebook extends Application {
         }
         catch (SQLException ex)
         {
-            if(ex.getSQLState().equalsIgnoreCase("X0Y32") )
-                return; // That's OK
-            throw ex;
+            if(!ex.getSQLState().equalsIgnoreCase("X0Y32") )
+                throw ex;
+        }
+        try
+        {
+            Statement s = m_conn.createStatement();
+            s.execute("alter table Chains add column externalChainId BIGINT");
+            s.execute("alter table Chains add column nextWordId BIGINT");
+            s.execute("alter table Chains add FOREIGN KEY(externalChainId) REFERENCES Chains(id)");
+            s.execute("update Chains set externalChainId = id");
+            s.execute("alter table Chains add FOREIGN KEY(nextWordId) REFERENCES Words(id)");
+        }
+        catch (SQLException ex)
+        {
+            if(!ex.getSQLState().equalsIgnoreCase("X0Y32") )
+                throw ex;
         }
         
     }
@@ -333,6 +366,7 @@ public class ANotebook extends Application {
         m_input.textProperty().addListener(new InputChangeEventHandler(this));
         //m_input.setOnKeyTyped(new InputKeyEventHandler(this));
         m_input.setOnAction(new InputActionEventHandler(this));
+        m_input.setOnKeyPressed(new InputKeyEventHandler(this));
         m_root = new BorderPane();
         m_root.setBottom(m_input);
         m_sp = new ScrollPane(m_gp.get(ViewType.MAIN));
@@ -380,9 +414,10 @@ public class ANotebook extends Application {
         try {
             m_conn.close();
             DriverManager.getConnection(
-                "jdbc:derby:DDB/work;shutdown=true");
+                "jdbc:derby:;shutdown=true");
         } catch (SQLException ex) {
-            Logger.getLogger(ANotebook.class.getName()).log(Level.SEVERE, null, ex);
+            if (!ex.getSQLState().equals("XJ015"))
+                Logger.getLogger(ANotebook.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 

@@ -2,7 +2,7 @@
 <jnlp spec="1.0" xmlns:jfx="http://javafx.com" href="ANotebook.jnlp">
   <information>
     <title>ANotebook</title>
-    <vendor>РЎРµСЂРіРµР№</vendor>
+    <vendor>Сергей</vendor>
     <description>null</description>
     <offline-allowed/>
   </information>
@@ -11,8 +11,8 @@
   </resources>
   <resources>
     <j2se version="1.6+" href="http://java.sun.com/products/autodl/j2se"/>
-    <jar href="lib/ANBPreloader.jar" size="2866" download="progress" />
-    <jar href="ANotebook.jar" size="14837" download="eager" />
+    <jar href="lib/ANBPreloader.jar" size="2852" download="progress" />
+    <jar href="ANotebook.jar" size="18861" download="eager" />
     <jar href="lib/derby.jar" size="2835824" download="eager" />
   </resources>
   <applet-desc  width="800" height="600" main-class="com.javafx.main.NoJavaFXFallback"  name="ANotebook" >
