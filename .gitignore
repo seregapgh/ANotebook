@@ -46,6 +46,7 @@ Temporary Items
 *.class
 ANBPreloader/dist/ANBPreloader.jar
 ANBPreloader/dist/README.TXT
+ANotebook/DDB
 ANotebook/build/built-jar.properties
 ANotebook/build/classes/anotebook/ChainUC.fxml
 ANotebook/derby.log

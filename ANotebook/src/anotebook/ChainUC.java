@@ -224,7 +224,11 @@ public class ChainUC extends TitledPane {
 
             @Override
             public void onChanged(ListChangeListener.Change<? extends Word> c) {
-                listViewMain.scrollTo(words.size() - 1);
+                int selectedWordIndex = listViewMain.getSelectionModel().getSelectedIndex();
+                if (selectedWordIndex == -1)
+                    listViewMain.scrollTo(words.size() - 1);
+                else
+                    listViewMain.scrollTo(selectedWordIndex);
             }
         });
     } 

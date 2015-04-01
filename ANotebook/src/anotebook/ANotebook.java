@@ -24,7 +24,9 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Point2D;
 import javafx.geometry.Rectangle2D;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
@@ -160,19 +162,17 @@ public class ANotebook extends Application {
                         m_anb.m_gp.get(ViewType.MAIN).add(chuc, 0, 0);
                         m_anb.m_sp.setHvalue(m_anb.m_sp.getHmin());
                         m_anb.m_input.setText("");
+                        m_anb.setCurrentSelection(0);
                     }
                 }
-                catch (NumberFormatException ex)
-                {
-                }
-                catch (SQLException ex)
+                catch (NumberFormatException | SQLException ex)
                 {
                 }
             } 
             else if (!word.isEmpty())
             {
                 try {
-                    m_anb.m_chucs.get(ViewType.MAIN).get(0).AddWord(word);
+                    m_anb.getCurrentChainUC().AddWord(word);
                     m_anb.m_input.setText("");
                 } catch (SQLException ex) {
                     Logger.getLogger(ANotebook.class.getName()).log(Level.SEVERE, null, ex);
@@ -184,6 +184,7 @@ public class ANotebook extends Application {
                     ChainUC chuc = new ChainUC();
                     chuc.CreateChain();
                     m_anb.addChain(chuc, ViewType.MAIN);
+                    m_anb.setCurrentSelection(0);
                 } catch (SQLException ex) {
                     Logger.getLogger(ANotebook.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -199,14 +200,64 @@ public class ANotebook extends Application {
         }
         @Override
         public void handle(KeyEvent keyEvent) {
-            if (keyEvent.getCode() == KeyCode.UP
+            if (keyEvent.isControlDown())
+            {
+                if (keyEvent.getCode() == KeyCode.RIGHT)
+                    m_anb.setRightSelection();
+                if (keyEvent.getCode() == KeyCode.LEFT)
+                    m_anb.setLeftSelection();
+            }
+            else if (keyEvent.getCode() == KeyCode.UP
                     || keyEvent.getCode() == KeyCode.DOWN)
             {
-                m_anb.m_chucs.get(ViewType.MAIN).get(0).fireEvent(keyEvent);
+                m_anb.getCurrentChainUC().fireEvent(keyEvent);
                 keyEvent.consume();
             }
         }
         
+    }
+    
+    private int m_currentSelection;
+    private ChainUC m_currentSelectionChainUC;
+    public int getCurrentSelection()
+    {
+        return m_currentSelection;
+    }
+    public ChainUC getCurrentChainUC()
+    {
+        return m_currentSelectionChainUC;
+    }
+    public void setCurrentSelection(int selection)
+    {
+        if (m_currentSelectionChainUC != null)
+            m_currentSelectionChainUC.lookup(".title").setStyle("-fx-background-color: lightgrey;");;
+        if (selection < m_chucs.get(ViewType.MAIN).size())
+            m_currentSelection = selection;
+        else
+            m_currentSelection = 0;
+        m_currentSelectionChainUC = m_chucs.get(ViewType.MAIN).get(m_currentSelection);
+        Node n = m_currentSelectionChainUC.lookup(".title");
+        if (n != null)
+            n.setStyle("-fx-background-color: lightgreen;");
+        double width = m_sp.getContent().getBoundsInLocal().getWidth() - m_sp.getWidth(); 
+        double viewBegin = m_sp.getHvalue() * width;
+        double newBegin = m_currentSelectionChainUC.getBoundsInParent().getMinX();
+        double newEnd = m_currentSelectionChainUC.getBoundsInParent().getMaxX();
+        if (viewBegin > newBegin)
+            m_sp.setHvalue(newBegin / width);
+        else if (newEnd > viewBegin + m_sp.getWidth())
+            m_sp.setHvalue((newEnd - m_sp.getWidth()) / width);
+    }
+    public void setRightSelection()
+    {
+        setCurrentSelection(m_currentSelection +1);
+    }
+    public void setLeftSelection()
+    {
+        if (m_currentSelection > 0)
+            setCurrentSelection(m_currentSelection - 1);
+        else
+            setCurrentSelection(m_chucs.get(ViewType.MAIN).size() - 1);
     }
     BorderPane m_root;
     public TextField m_input;
@@ -361,6 +412,7 @@ public class ANotebook extends Application {
             chuc.CreateChain();
             addChain(chuc, ViewType.MAIN);
         }
+        m_currentSelectionChainUC = m_chucs.get(ViewType.MAIN).get(0);
             
         m_input = new TextField();
         m_input.textProperty().addListener(new InputChangeEventHandler(this));
@@ -371,7 +423,7 @@ public class ANotebook extends Application {
         m_root.setBottom(m_input);
         m_sp = new ScrollPane(m_gp.get(ViewType.MAIN));
         m_sp.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        m_sp.setFitToHeight(true);        
+        m_sp.setFitToHeight(true);
         m_root.setCenter(m_sp);
     }
     @Override
