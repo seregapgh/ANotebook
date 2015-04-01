@@ -17,6 +17,7 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.ListView;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TitledPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -84,35 +85,21 @@ public class ChainUC extends TitledPane {
         }
         
     }
-    public void AddWord(String word) throws SQLException
+    public void AddWord(Word word)throws SQLException
     {
-        Activate();
-        long wordId;
-        {
-            PreparedStatement st = ANotebook.m_conn.prepareStatement("insert into words(word, timestamp) values(?,?)");
-            st.setString(1, word);
-            st.setTimestamp(2, ANotebook.getCurrentTimestamp());
-            st.execute();
-//            ResultSet rs = ANotebook.m_conn.createStatement().executeQuery("select IDENTITY()");
-            ResultSet rs = ANotebook.m_conn.createStatement().executeQuery("values IDENTITY_VAL_LOCAL()");
-            if (rs.next())
-                wordId = rs.getLong(1);
-            else
-                throw new SQLException("Can't get word id");
-        }
         Word selectedWord = listViewMain.getSelectionModel().getSelectedItem();
         int selectedWordIndex = listViewMain.getSelectionModel().getSelectedIndex();
         PreparedStatement stInsertW2C = ANotebook.m_conn.prepareStatement("insert into words2chain(wordId, chainId) values(?, ?)");
-        stInsertW2C.setLong(1, wordId);
+        stInsertW2C.setLong(1, word.getId());
         if (selectedWord == null)
         {
             stInsertW2C.setLong(2, m_DBId);
             stInsertW2C.execute();
-            words.add(new Word(word, wordId));
+            words.add(word);
         }
         else
         {
-            PreparedStatement st = ANotebook.m_conn.prepareStatement("select id from chains where nextWordId = ?");
+            PreparedStatement st = ANotebook.m_conn.prepareStatement("select id from chains where nextWordId = ? order by id desc");
             st.setLong(1, selectedWord.getId());
             ResultSet rs = st.executeQuery();
             if (rs.next())
@@ -120,17 +107,32 @@ public class ChainUC extends TitledPane {
                 long chainId = rs.getLong("id");
                 stInsertW2C.setLong(2, chainId);
                 stInsertW2C.execute();
-                words.add(selectedWordIndex, new Word(word, wordId));
+                words.add(selectedWordIndex, word);
             }
             else
             {
                 long chainId = CreateChainExtended(m_DBId, selectedWord.getId());
                 stInsertW2C.setLong(2, chainId);
                 stInsertW2C.execute();
-                words.add(selectedWordIndex, new Word(word, wordId));
+                words.add(selectedWordIndex, word);
             }
         }
-        
+    }
+    public void AddWord(String word) throws SQLException
+    {
+        Activate();
+        long wordId;
+        PreparedStatement st = ANotebook.m_conn.prepareStatement("insert into words(word, timestamp) values(?,?)");
+        st.setString(1, word);
+        st.setTimestamp(2, ANotebook.getCurrentTimestamp());
+        st.execute();
+//            ResultSet rs = ANotebook.m_conn.createStatement().executeQuery("select IDENTITY()");
+        ResultSet rs = ANotebook.m_conn.createStatement().executeQuery("values IDENTITY_VAL_LOCAL()");
+        if (rs.next())
+            wordId = rs.getLong(1);
+        else
+            throw new SQLException("Can't get word id");
+        AddWord(new Word(word, wordId));
     }
     public Long m_DBId;
     public long CreateChainExtended(Long externalChainId, Long nextWordId) throws SQLException
@@ -205,6 +207,55 @@ public class ChainUC extends TitledPane {
             }
         }
     }
+    private void removeWord(Word word) throws SQLException
+    {
+        int index = words.indexOf(word);
+        if (index > 0)
+        {
+            Word prevWord = words.get(index - 1);
+            Word nextWord = null;
+            if (index < words.size() - 1)
+                nextWord = words.get(index + 1);
+            PreparedStatement st = ANotebook.m_conn.prepareStatement("select chainId from words2chain where wordId = ?");
+            st.setLong(1, prevWord.getId());
+            ResultSet rs = st.executeQuery();
+            long prevWordChainId;
+            if (rs.next())
+                prevWordChainId = rs.getLong("chainId");
+            else
+                throw new SQLException("Can't read chainId");
+            if (prevWordChainId != this.m_DBId)
+            {
+                st = ANotebook.m_conn.prepareStatement("update chains set nextWordId = ? where id = ?");
+                if (nextWord != null)
+                    st.setLong(1, nextWord.getId());
+                else
+                    st.setNull(1, java.sql.Types.BIGINT);
+                st.setLong(2, prevWordChainId);
+                st.execute();
+            }
+        }
+        PreparedStatement deleteSt = ANotebook.m_conn.prepareStatement("delete from words2chain where wordId = ?");
+        deleteSt.setLong(1, word.getId());
+        deleteSt.execute();
+        words.remove(word);
+    }
+    public void eraseSelection() throws SQLException
+    {
+        Word[] selectedWords = listViewMain.getSelectionModel().getSelectedItems().toArray(new Word[0]);
+        for(Word word : selectedWords)
+            removeWord(word);
+    }
+    public void moveSelection(ChainUC targetChain)
+            throws SQLException
+    {
+        Word[] selectedWords = listViewMain.getSelectionModel().getSelectedItems().toArray(new Word[0]);
+        for(Word word : selectedWords)
+        {
+            removeWord(word);
+            targetChain.AddWord(word);
+        }
+    }
     ObservableList<Word> words;
     public ChainUC(String title, ObservableList<Word> words) {
         this.words = words;
@@ -231,5 +282,6 @@ public class ChainUC extends TitledPane {
                     listViewMain.scrollTo(selectedWordIndex);
             }
         });
+        listViewMain.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
     } 
 }

@@ -168,7 +168,23 @@ public class ANotebook extends Application {
                 catch (NumberFormatException | SQLException ex)
                 {
                 }
-            } 
+            }
+            else if (word.startsWith("="))
+            {
+                try {
+                    if (word.equals("=-"))
+                            m_anb.getCurrentChainUC().eraseSelection();
+                    else
+                    {
+                        int id = Integer.parseUnsignedInt(word.substring(1));
+                        ChainUC targetChain = m_anb.m_chucs.get(ViewType.MAIN).get(id);
+                        m_anb.getCurrentChainUC().moveSelection(targetChain);
+                    }
+                    m_anb.m_input.setText("");
+                } catch (SQLException ex) {
+                    Logger.getLogger(ANotebook.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
             else if (!word.isEmpty())
             {
                 try {
