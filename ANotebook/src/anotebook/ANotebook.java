@@ -404,7 +404,18 @@ public class ANotebook extends Application {
             if(!ex.getSQLState().equalsIgnoreCase("X0Y32") )
                 throw ex;
         }
-        
+
+                try
+        {
+            Statement s = m_conn.createStatement();
+            s.execute("alter table Words2Chain add column timestamp TIMESTAMP");
+        }
+        catch (SQLException ex)
+        {
+            if(!ex.getSQLState().equalsIgnoreCase("X0Y32") )
+                throw ex;
+        }
+
     }
     public static Timestamp getCurrentTimestamp()
     {

@@ -10,6 +10,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -89,8 +91,9 @@ public class ChainUC extends TitledPane {
     {
         Word selectedWord = listViewMain.getSelectionModel().getSelectedItem();
         int selectedWordIndex = listViewMain.getSelectionModel().getSelectedIndex();
-        PreparedStatement stInsertW2C = ANotebook.m_conn.prepareStatement("insert into words2chain(wordId, chainId) values(?, ?)");
+        PreparedStatement stInsertW2C = ANotebook.m_conn.prepareStatement("insert into words2chain(wordId, chainId, timestamp) values(?, ?, ?)");
         stInsertW2C.setLong(1, word.getId());
+        stInsertW2C.setTimestamp(3, ANotebook.getCurrentTimestamp());
         if (selectedWord == null)
         {
             stInsertW2C.setLong(2, m_DBId);
@@ -180,15 +183,18 @@ public class ChainUC extends TitledPane {
     {
         words.clear();
         PreparedStatement st = ANotebook.m_conn.prepareStatement(
-                "select word, wordId, nextWordId from words "
+                "select word, wordId, nextWordId, words2chain.timestamp as w2ctimestamp from words "
                         + "inner join words2chain on words.id = words2chain.wordId "
                         + "inner join chains on words2chain.chainId = chains.id "
                         + "where externalChainId = ?"
-                        + "order by chains.id, words.id");
+                        + "order by chains.id, words2chain.timestamp nulls first, words.id");
         st.setLong(1, m_DBId);
         ResultSet rs = st.executeQuery();
         while (rs.next())
         {
+            Timestamp ts = rs.getTimestamp("w2ctimestamp");
+            if (!rs.wasNull())
+                Logger.getLogger(ChainUC.class.getName()).log(Level.INFO, "ts not null");
             Long nextWordId = rs.getLong("nextWordId");
             if (rs.wasNull())
                 nextWordId = null;
@@ -203,6 +209,8 @@ public class ChainUC extends TitledPane {
                         index++;
                     else
                         break;
+                if (index == words.size())
+                    Logger.getLogger(ChainUC.class.getName()).log(Level.WARNING, "nextWordId absent");
                 words.add(index, word);
             }
         }
@@ -210,31 +218,17 @@ public class ChainUC extends TitledPane {
     private void removeWord(Word word) throws SQLException
     {
         int index = words.indexOf(word);
-        if (index > 0)
-        {
-            Word prevWord = words.get(index - 1);
-            Word nextWord = null;
-            if (index < words.size() - 1)
-                nextWord = words.get(index + 1);
-            PreparedStatement st = ANotebook.m_conn.prepareStatement("select chainId from words2chain where wordId = ?");
-            st.setLong(1, prevWord.getId());
-            ResultSet rs = st.executeQuery();
-            long prevWordChainId;
-            if (rs.next())
-                prevWordChainId = rs.getLong("chainId");
-            else
-                throw new SQLException("Can't read chainId");
-            if (prevWordChainId != this.m_DBId)
-            {
-                st = ANotebook.m_conn.prepareStatement("update chains set nextWordId = ? where id = ?");
-                if (nextWord != null)
-                    st.setLong(1, nextWord.getId());
-                else
-                    st.setNull(1, java.sql.Types.BIGINT);
-                st.setLong(2, prevWordChainId);
-                st.execute();
-            }
-        }
+        Word nextWord = null;
+        if (index < words.size() - 1)
+            nextWord = words.get(index + 1);
+        PreparedStatement st = ANotebook.m_conn.prepareStatement("update chains set nextWordId = ? where nextWordId = ?");
+        if (nextWord != null)
+            st.setLong(1, nextWord.getId());
+        else
+            st.setNull(1, java.sql.Types.BIGINT);
+        st.setLong(2, word.getId());
+        st.execute();
+        
         PreparedStatement deleteSt = ANotebook.m_conn.prepareStatement("delete from words2chain where wordId = ?");
         deleteSt.setLong(1, word.getId());
         deleteSt.execute();
