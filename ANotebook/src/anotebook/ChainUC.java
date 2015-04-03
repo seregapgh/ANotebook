@@ -193,8 +193,6 @@ public class ChainUC extends TitledPane {
         while (rs.next())
         {
             Timestamp ts = rs.getTimestamp("w2ctimestamp");
-            if (!rs.wasNull())
-                Logger.getLogger(ChainUC.class.getName()).log(Level.INFO, "ts not null");
             Long nextWordId = rs.getLong("nextWordId");
             if (rs.wasNull())
                 nextWordId = null;

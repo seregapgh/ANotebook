@@ -24,7 +24,6 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
-import javafx.geometry.Point2D;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -172,8 +171,15 @@ public class ANotebook extends Application {
             else if (word.startsWith("="))
             {
                 try {
-                    if (word.equals("=-"))
-                            m_anb.getCurrentChainUC().eraseSelection();
+                    if (word.equals("="))
+                    {
+                        ChainUC chuc = new ChainUC();
+                        chuc.CreateChain();
+                        m_anb.addChain(chuc, ViewType.MAIN);
+                        m_anb.getCurrentChainUC().moveSelection(chuc);
+                    }
+                    else if (word.equals("=-"))
+                        m_anb.getCurrentChainUC().eraseSelection();
                     else
                     {
                         int id = Integer.parseUnsignedInt(word.substring(1));
@@ -218,9 +224,17 @@ public class ANotebook extends Application {
         public void handle(KeyEvent keyEvent) {
             if (keyEvent.isControlDown())
             {
-                if (keyEvent.getCode() == KeyCode.RIGHT)
+                if (keyEvent.getCode() == KeyCode.TAB)
+                {
+                    if (keyEvent.isShiftDown())
+                        m_anb.setLeftSelection();
+                    else
+                        m_anb.setRightSelection();
+                    keyEvent.consume();
+                }
+                else if (keyEvent.getCode() == KeyCode.RIGHT)
                     m_anb.setRightSelection();
-                if (keyEvent.getCode() == KeyCode.LEFT)
+                else if (keyEvent.getCode() == KeyCode.LEFT)
                     m_anb.setLeftSelection();
             }
             else if (keyEvent.getCode() == KeyCode.UP
@@ -233,11 +247,22 @@ public class ANotebook extends Application {
         
     }
     
-    private int m_currentSelection;
     private ChainUC m_currentSelectionChainUC;
+    public int getChainUCIndex(ChainUC ch)
+    {
+        int index = 0;
+        for (ChainUC chuc : m_chucs.get(ViewType.MAIN))
+        {
+            if (chuc == ch)
+                return index;
+            else
+                index++;
+        }
+        return 0;
+    }
     public int getCurrentSelection()
     {
-        return m_currentSelection;
+        return getChainUCIndex(m_currentSelectionChainUC);
     }
     public ChainUC getCurrentChainUC()
     {
@@ -246,12 +271,13 @@ public class ANotebook extends Application {
     public void setCurrentSelection(int selection)
     {
         if (m_currentSelectionChainUC != null)
-            m_currentSelectionChainUC.lookup(".title").setStyle("-fx-background-color: lightgrey;");;
+            m_currentSelectionChainUC.lookup(".title").setStyle("-fx-background-color: lightgrey;");
+        int currentSelection;
         if (selection < m_chucs.get(ViewType.MAIN).size())
-            m_currentSelection = selection;
+            currentSelection = selection;
         else
-            m_currentSelection = 0;
-        m_currentSelectionChainUC = m_chucs.get(ViewType.MAIN).get(m_currentSelection);
+            currentSelection = 0;
+        m_currentSelectionChainUC = m_chucs.get(ViewType.MAIN).get(currentSelection);
         Node n = m_currentSelectionChainUC.lookup(".title");
         if (n != null)
             n.setStyle("-fx-background-color: lightgreen;");
@@ -266,12 +292,13 @@ public class ANotebook extends Application {
     }
     public void setRightSelection()
     {
-        setCurrentSelection(m_currentSelection +1);
+        setCurrentSelection(getCurrentSelection() +1);
     }
     public void setLeftSelection()
     {
-        if (m_currentSelection > 0)
-            setCurrentSelection(m_currentSelection - 1);
+        int currentSelection = getCurrentSelection();
+        if (currentSelection > 0)
+            setCurrentSelection(currentSelection - 1);
         else
             setCurrentSelection(m_chucs.get(ViewType.MAIN).size() - 1);
     }
@@ -323,6 +350,23 @@ public class ANotebook extends Application {
             newChuc.Load();
             addChain(newChuc, ViewType.MAIN);
         }
+        setCurrentSelection(0);
+    }
+    class ChainUCFocusListener implements ChangeListener<Boolean> {
+            ChainUC m_chuc;
+            ANotebook m_anb;
+            ChainUCFocusListener(ChainUC chuc, ANotebook anb)
+            {
+                m_chuc = chuc;
+                m_anb = anb;
+            }
+            
+
+            @Override
+            public void changed(ObservableValue<? extends Boolean> observable, Boolean oldValue, Boolean newValue) {
+                if (newValue)
+                    m_anb.setCurrentSelection(m_anb.getChainUCIndex(m_chuc));
+            }
     }
     public  void addChain(ChainUC chuc, ViewType vt)
     {
@@ -333,6 +377,7 @@ public class ANotebook extends Application {
         }
         m_chucs.get(vt).add(0, chuc);
         m_gp.get(vt).add(m_chucs.get(vt).get(0), 0, 0);
+        chuc.focusedProperty().addListener(new ChainUCFocusListener(chuc, this));
     }
     private void loadTopChains(int number) throws SQLException
     {
